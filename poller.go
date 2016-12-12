@@ -31,18 +31,6 @@ type Event interface {
 	Type() string
 }
 
-// PollEvent implements the Event interface and can be used when
-// only the type of event that's occured is needed to be known by
-// the poller's watcher.
-type PollEvent struct {
-	typ string
-}
-
-// Type simply returns the PollEvent's typ string.
-func (e *PollEvent) Type() string {
-	return e.typ
-}
-
 // A Poller turns an object that implements the poller Interface
 // into a useable poller that emits events and errors when sent
 // from within the implemented poller's PollFunc method.
@@ -131,8 +119,12 @@ func (p *Poller) Start(d time.Duration) error {
 			case err := <-errc:
 				p.Error <- err
 			case event := <-evt:
+				// Ignore any more events from this cycle.
 				if p.maxEvents > 0 && numEvents == p.maxEvents {
-					break inner
+					// TODO: work out proper filtering so we can
+					// cancel the cycle early without the extra events
+					// coming through in the next cycle.
+					continue
 				}
 				numEvents++
 				p.Event <- event
