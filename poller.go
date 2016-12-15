@@ -40,10 +40,9 @@ type Poller struct {
 	Error  chan error
 	close  chan struct{}
 
-	// mu protects running and maxEvents.
-	mu        *sync.Mutex
-	running   bool
-	maxEvents int
+	// mu protects running.
+	mu      *sync.Mutex
+	running bool
 }
 
 // New creates a new Poller for the specified Poller Interface.
@@ -55,16 +54,6 @@ func New(poller Interface) *Poller {
 		close:  make(chan struct{}),
 		mu:     new(sync.Mutex),
 	}
-}
-
-// SetMaxEvents sets the maximum amount of events that can be sent
-// on the poller's Event channel per watching cycle.
-//
-// If amount is less than 1, there is no limit, which is the default.
-func (p *Poller) SetMaxEvents(amount int) {
-	p.mu.Lock()
-	p.maxEvents = amount
-	p.mu.Unlock()
 }
 
 // Start begins the polling cycle which repeats every specified
@@ -106,10 +95,6 @@ func (p *Poller) Start(d time.Duration) error {
 			done <- struct{}{}
 		}()
 
-		// numEvents keeps track of the number of events that
-		// occur per polling cycle to be used with p.maxEvents.
-		numEvents := 0
-
 	inner:
 		// Emit any events or errors when they occur.
 		for {
@@ -119,14 +104,6 @@ func (p *Poller) Start(d time.Duration) error {
 			case err := <-errc:
 				p.Error <- err
 			case event := <-evt:
-				// Ignore any more events from this cycle.
-				if p.maxEvents > 0 && numEvents == p.maxEvents {
-					// TODO: work out proper filtering so we can
-					// cancel the cycle early without the extra events
-					// coming through in the next cycle.
-					continue
-				}
-				numEvents++
 				p.Event <- event
 			case <-done:
 				break inner
