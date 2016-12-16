@@ -1,6 +1,6 @@
 # poller
 
-`poller` contains a simple polling interface that's used for easily creating custom polling functionality for applications.
+`poller` is used to easily create custom polling functionality for an application and returns events and errors over channels when a custom polling functions implementing the poller interface are run every specified duration.
 
 # Installation
 
