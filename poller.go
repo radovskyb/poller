@@ -34,6 +34,10 @@ type Event interface {
 // A Poller turns an object that implements the poller Interface
 // into a useable poller that emits events and errors when sent
 // from within the implemented poller's PollFunc method.
+//
+// TODO: Add close select case for polling loop to be able to check
+// for a case such as <-p.Close or just decide if it's simpler to
+// return an ErrPollerClosed error on the <-p.Error channel.
 type Poller struct {
 	poller Interface
 	Event  chan Event
