@@ -9,8 +9,8 @@ import (
 
 var (
 	// ErrDurationTooShort occurs when calling the poller's Start
-	// method with a specified duration of less than 1 ms.
-	ErrDurationTooShort = errors.New("error: d is less than 1 ms")
+	// method with a duration that's less than 1 nanosecond.
+	ErrDurationTooShort = errors.New("error: duration is less than 1ns")
 
 	// ErrPollerRunning occurs when trying to call the poller's
 	// Start method and the polling cycle is still already running
@@ -21,14 +21,12 @@ var (
 // Interface describes what is needed for something to be used
 // as a poller.
 type Interface interface {
-	PollFunc(chan Event, chan error)
+	PollFunc(chan Eventer, chan error)
 }
 
-// Event contains a single method Type, which is the minimum method
-// that needs to be implemented by an object in order to be used and
-// passed around as a poller event.
-type Event interface {
-	Type() string
+// An Eventer is used as a poller event.
+type Eventer interface {
+	Event() string
 }
 
 // A Poller turns an object that implements the poller Interface
@@ -40,7 +38,7 @@ type Event interface {
 // return an ErrPollerClosed error on the <-p.Error channel.
 type Poller struct {
 	poller Interface
-	Event  chan Event
+	Event  chan Eventer
 	Error  chan error
 	close  chan struct{}
 
@@ -53,7 +51,7 @@ type Poller struct {
 func New(poller Interface) *Poller {
 	return &Poller{
 		poller: poller,
-		Event:  make(chan Event),
+		Event:  make(chan Eventer),
 		Error:  make(chan error),
 		close:  make(chan struct{}),
 		mu:     new(sync.Mutex),
@@ -63,9 +61,8 @@ func New(poller Interface) *Poller {
 // Start begins the polling cycle which repeats every specified
 // duration until Close is called.
 func (p *Poller) Start(d time.Duration) error {
-	// Give the poller a responsible polling period. Return an
-	// error if d is less than 1 millisecond.
-	if d < time.Millisecond {
+	// Return an error if d is less than 1 nanosecond.
+	if d < time.Nanosecond {
 		return ErrDurationTooShort
 	}
 
@@ -84,7 +81,7 @@ func (p *Poller) Start(d time.Duration) error {
 	// They are used instead of passing p.Event and p.Error directly
 	// to the PollFunc, to help build an abstraction around things
 	// such as the p.maxEvents check.
-	evt, errc := make(chan Event), make(chan error)
+	evt, errc := make(chan Eventer), make(chan error)
 
 	// done lets the inner polling cycle loop know when the
 	// current cycle's PollFunc method has finished executing.

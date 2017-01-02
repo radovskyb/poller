@@ -12,19 +12,20 @@ import (
 	"github.com/radovskyb/poller"
 )
 
-type Event struct {
-	typ string
+type FSEvent struct {
+	typ  string
+	path string
 }
 
-func (e *Event) Type() string {
-	return e.typ
+func (e FSEvent) Event() string {
+	return fmt.Sprintf("%s: %s", e.typ, e.path)
 }
 
 type FilePoller struct {
 	infos map[string]os.FileInfo
 }
 
-func (fp *FilePoller) PollFunc(evt chan poller.Event, errc chan error) {
+func (fp *FilePoller) PollFunc(evt chan poller.Eventer, errc chan error) {
 	newinfos, err := fp.getFileInfos()
 	if err != nil {
 		errc <- err
@@ -36,7 +37,7 @@ func (fp *FilePoller) PollFunc(evt chan poller.Event, errc chan error) {
 			continue
 		}
 		if info.ModTime() != newinfo.ModTime() && !info.IsDir() {
-			evt <- &Event{"Modified: " + path}
+			evt <- &FSEvent{"Modified", path}
 		}
 	}
 	fp.infos = newinfos
@@ -81,8 +82,8 @@ func main() {
 	go func() {
 		for {
 			select {
-			case event := <-p.Event:
-				fmt.Println(event.Type())
+			case e := <-p.Event:
+				fmt.Println(e.Event())
 			case err := <-p.Error:
 				fmt.Println(err)
 			}

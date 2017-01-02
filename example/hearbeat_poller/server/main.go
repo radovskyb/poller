@@ -12,22 +12,14 @@ import (
 	"github.com/radovskyb/poller"
 )
 
-type Event struct {
+type NetEvent struct {
 	typ  string
 	msg  string
 	addr net.Addr
 }
 
-func (e *Event) Type() string {
-	return e.typ
-}
-
-func (e *Event) Message() string {
-	return e.msg
-}
-
-func (e *Event) Addr() string {
-	return e.addr.String()
+func (e *NetEvent) Event() string {
+	return fmt.Sprintf("%s: %s [%v]", e.typ, e.msg, e.addr)
 }
 
 type NetPoller struct {
@@ -39,7 +31,7 @@ func NewNetPoller() *NetPoller {
 	return &NetPoller{mu: &sync.Mutex{}}
 }
 
-func (np *NetPoller) PollFunc(evt chan poller.Event, errc chan error) {
+func (np *NetPoller) PollFunc(evt chan poller.Eventer, errc chan error) {
 	np.mu.Lock()
 	defer np.mu.Unlock()
 
@@ -54,16 +46,16 @@ func (np *NetPoller) PollFunc(evt chan poller.Event, errc chan error) {
 				errc <- err
 			}
 			np.conns = append(np.conns[:i], np.conns[i+1:]...)
-			evt <- &Event{
+			evt <- &NetEvent{
 				typ:  "connection close",
-				msg:  fmt.Sprintf("closing connection: %d\n", i),
+				msg:  fmt.Sprintf("closing connection %d", i),
 				addr: conn.RemoteAddr(),
 			}
 			continue
 		}
-		evt <- &Event{
+		evt <- &NetEvent{
 			typ:  "heartbeat",
-			msg:  fmt.Sprintf("Sent heartbeat to connection: %d\n", i),
+			msg:  fmt.Sprintf("Sent heartbeat to connection %d", i),
 			addr: conn.RemoteAddr(),
 		}
 	}
@@ -92,9 +84,8 @@ func main() {
 	go func() {
 		for {
 			select {
-			case event := <-p.Event:
-				e := event.(*Event)
-				fmt.Printf("type: %s, addr: %s\n", e.Type(), e.Addr())
+			case e := <-p.Event:
+				fmt.Println(e.Event())
 			case err := <-p.Error:
 				fmt.Println(err)
 			}
