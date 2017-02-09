@@ -40,6 +40,7 @@ type Poller struct {
 	poller Interface
 	Event  chan Eventer
 	Error  chan error
+	Closed chan struct{}
 	close  chan struct{}
 
 	// mu protects running.
@@ -53,6 +54,7 @@ func New(poller Interface) *Poller {
 		poller: poller,
 		Event:  make(chan Eventer),
 		Error:  make(chan error),
+		Closed: make(chan struct{}),
 		close:  make(chan struct{}),
 		mu:     new(sync.Mutex),
 	}
@@ -101,6 +103,7 @@ func (p *Poller) Start(d time.Duration) error {
 		for {
 			select {
 			case <-p.close:
+				p.Closed <- struct{}{}
 				return nil
 			case err := <-errc:
 				p.Error <- err

@@ -86,6 +86,8 @@ func main() {
 				fmt.Println(e.Event())
 			case err := <-p.Error:
 				fmt.Println(err)
+			case <-p.Closed:
+				return
 			}
 		}
 	}()
@@ -100,9 +102,11 @@ func main() {
 		close(done)
 	}()
 
-	if err := p.Start(time.Millisecond * 100); err != nil {
-		log.Fatalln(err)
-	}
+	go func() {
+		if err := p.Start(time.Millisecond * 100); err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
 	<-done
 }
